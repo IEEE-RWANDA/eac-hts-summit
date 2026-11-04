@@ -25,11 +25,24 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check for Next.js app
+        id: app
+        run: |
+          if [ ! -f package.json ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Deployment skipped: add a Next.js app at the repository root." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e 'const p = require("./package.json"); if (!p.dependencies?.next && !p.devDependencies?.next) throw new Error("Expected a Next.js app at the repository root");'
+          echo "ready=true" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
+        if: steps.app.outputs.ready == 'true'
         with:
           node-version: 24
       - run: npm install --global vercel@56.5.0
+        if: steps.app.outputs.ready == 'true'
       - name: Deploy
+        if: steps.app.outputs.ready == 'true'
         env:
           PRODUCTION: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         run: |
